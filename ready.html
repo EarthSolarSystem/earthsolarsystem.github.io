@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TERRA</title>
+<meta name="description" content="Интерактивная платформа: от электрического заряда до параллельной работы судовых генераторов.">
+<meta name="theme-color" content="#04070b">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500&family=IBM+Plex+Sans+Condensed:wght@200;300;400;500&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:       #04070b;
+  --ink:      #e3eaf1;
+  --ink-2:    #93a3b3;
+  --ink-3:    #6b7c8d;
+  --accent:   #6fe0d8;
+  --warn:     #e8a44c;
+  --line:     rgba(255,255,255,.12);
+  --line-2:   rgba(255,255,255,.06);
+  --panel:    rgba(8,14,22,.42);
+
+  --sans: "IBM Plex Sans Condensed","Roboto Condensed","PT Sans Narrow",system-ui,sans-serif;
+  --mono: "IBM Plex Mono",ui-monospace,"SF Mono",Consolas,monospace;
+
+  --pad-x: clamp(1.15rem, 4vw, 3.25rem);
+  --pad-y: clamp(1rem, 2.2vw, 1.75rem);
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html,body{ margin:0; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-weight:300;
+  line-height:1.5;
+  overflow-x:hidden;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+img{ display:block; max-width:100%; }
+a{ color:inherit; }
+::selection{ background:var(--accent); color:#04070b; }
+:focus-visible{ outline:1px solid var(--accent); outline-offset:6px; border-radius:1px; }
+
+.skip{
+  position:fixed; top:-100px; left:1rem; z-index:99;
+  padding:.6rem 1rem; background:var(--accent); color:#04070b;
+  font:500 12px/1 var(--mono); letter-spacing:.12em; text-transform:uppercase;
+  text-decoration:none;
+}
+.skip:focus{ top:1rem; }
+
+/* ─── ФОН ──────────────────────────────────────────────── */
+.bg{
+  position:fixed; inset:0;
+  overflow:hidden;
+  z-index:0;
+  pointer-events:none;
+  background:
+    radial-gradient(ellipse 80% 60% at 70% 10%, #071019 0%, #04070b 55%, #020408 100%);
+}
+.bg__stars{ position:absolute; inset:0; width:100%; height:100%; opacity:.85; }
+
+/* Фото Земли. Слой лежит выше CSS-планеты и появляется после загрузки. */
+.bg__photo{
+  position:absolute; inset:0;
+  background-image:url("https://upload.wikimedia.org/wikipedia/commons/0/04/Hurricane_Isabel_from_ISS.jpg");
+  background-repeat:no-repeat;
+  background-position:center 70%;
+  background-size:auto 130vh;
+  filter:brightness(.72) contrast(1.04) saturate(1.06);
+  opacity:0;
+  transition:opacity 1.6s ease;
+  animation:bgDrift 160s ease-in-out infinite alternate;
+}
+.bg.is-ready .bg__photo{ opacity:1; }
+@keyframes bgDrift{
+  from{ background-position:center 70%; }
+  to  { background-position:center 67%; }
+}
+
+/* Запасной фон, пока фото не загрузилось. */
+.bg__planet{
+  position:absolute;
+  left:52%;
+  top:58vh;
+  width:260vw;
+  height:260vw;
+  transform:translateX(-50%);
+  border-radius:50%;
+  background:
+    radial-gradient(ellipse 70% 3% at 50% 0%,
+      rgba(196,234,255,.92) 0%,
+      rgba(112,186,255,.45) 22%,
+      rgba(58,130,220,.12) 58%,
+      transparent 100%),
+    radial-gradient(ellipse 100% 13% at 50% 0%,
+      rgba(48,124,204,.28) 0%,
+      rgba(30,80,150,.10) 55%,
+      transparent 100%),
+    radial-gradient(circle at 50% 0%,
+      #13415f 0%,
+      #0b2540 6%,
+      #061a2c 15%,
+      #030e18 27%,
+      #01060c 43%,
+      #000 66%);
+  box-shadow:
+    0 -2px 26px 1px rgba(140,205,255,.30),
+    0 -12px 90px 12px rgba(60,140,230,.12);
+}
+
+/* Затемнение под текст и футер */
+.bg__vignette{
+  position:absolute; inset:0;
+  background:
+    linear-gradient(100deg,
+      rgba(2,5,9,.90) 0%,
+      rgba(2,5,9,.62) 32%,
+      rgba(2,5,9,.18) 58%,
+      transparent 78%),
+    linear-gradient(to top,
+      rgba(2,5,9,.88) 0%,
+      rgba(2,5,9,.30) 30%,
+      transparent 55%),
+    linear-gradient(to bottom,
+      rgba(2,5,9,.72) 0%,
+      transparent 18%);
+}
+
+.grain{
+  position:fixed; inset:0; z-index:3; pointer-events:none;
+  opacity:.055; mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ─── КАРКАС ───────────────────────────────────────────── */
+.page{
+  position:relative; z-index:2;
+  min-height:100vh;
+  min-height:100svh;
+  display:grid;
+  grid-template-rows:auto 1fr auto;
+  gap:clamp(1.25rem, 3.5vh, 2.5rem);
+  padding:var(--pad-y) var(--pad-x);
+}
+
+.top{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1.5rem;
+  flex-wrap:wrap;
+}
+.brand{
+  display:inline-flex;
+  align-items:center;
+  gap:.7rem;
+  text-decoration:none;
+  color:var(--ink);
+}
+.brand__mark{
+  width:22px; height:22px;
+  color:var(--accent);
+  flex:none;
+  filter:drop-shadow(0 0 8px rgba(111,224,216,.45));
+}
+.brand__name{
+  font:500 15px/1 var(--mono);
+  letter-spacing:.34em;
+  text-transform:uppercase;
+  padding-left:.34em;
+}
+.brand__sep{ width:1px; height:14px; background:var(--line); }
+.brand__tag{
+  font:400 10px/1 var(--mono);
+  letter-spacing:.20em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+
+.top__meta{ display:flex; align-items:center; gap:1.25rem; }
+.pill{
+  display:inline-flex;
+  align-items:center;
+  gap:.5rem;
+  font:400 10px/1 var(--mono);
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--ink-2);
+}
+.dot{
+  width:5px; height:5px; border-radius:50%;
+  background:var(--accent);
+  box-shadow:0 0 0 0 rgba(111,224,216,.55);
+  animation:pulse 3.2s ease-out infinite;
+}
+@keyframes pulse{
+  0%  { box-shadow:0 0 0 0 rgba(111,224,216,.5); }
+  70% { box-shadow:0 0 0 7px rgba(111,224,216,0); }
+  100%{ box-shadow:0 0 0 0 rgba(111,224,216,0); }
+}
+.ver{
+  font:400 10px/1 var(--mono);
+  letter-spacing:.18em;
+  color:var(--ink-3);
+  padding:.35rem .55rem;
+  border:1px solid var(--line-2);
+}
+
+/* ─── СЦЕНА ────────────────────────────────────────────── */
+.stage{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(228px, 300px);
+  align-items:end;
+  gap:clamp(2rem, 5vw, 5rem);
+  padding-bottom:clamp(.5rem, 3vh, 2.5rem);
+}
+.stage__main{ max-width:44rem; min-width:0; }
+
+/* ─── Заголовок ────────────────────────────────────────── */
+.intro{ margin-bottom:clamp(1.5rem, 4vh, 2.75rem); }
+
+.intro__title{
+  margin:0 0 clamp(.9rem, 2vh, 1.4rem);
+  font-size:clamp(2.7rem, 7.4vw, 5.4rem);
+  font-weight:200;
+  line-height:.93;
+  letter-spacing:.01em;
+  text-transform:uppercase;
+  text-wrap:balance;
+  text-shadow:0 4px 40px rgba(0,0,0,.65);
+}
+
+.intro__lead{
+  margin:0;
+  max-width:46ch;
+  font-size:clamp(.9rem, 1.15vw, 1.02rem);
+  font-weight:300;
+  line-height:1.62;
+  color:var(--ink-2);
+  text-shadow:0 2px 18px rgba(0,0,0,.8);
+}
+
+/* ─── Меню ─────────────────────────────────────────────── */
+.menu{
+  display:flex;
+  flex-direction:column;
+  border-top:1px solid var(--line-2);
+}
+
+.menu__item{
+  position:relative;
+  display:grid;
+  grid-template-columns:2.4rem minmax(0,1fr);
+  column-gap:clamp(.55rem, 1.4vw, 1.1rem);
+  align-items:baseline;
+  padding:clamp(.7rem, 1.5vh, 1.05rem) clamp(1.25rem, 3vw, 2rem) clamp(.7rem, 1.5vh, 1.05rem) 0;
+  text-decoration:none;
+  color:var(--ink);
+  border-bottom:1px solid var(--line-2);
+  -webkit-tap-highlight-color:transparent;
+}
+.menu__item::after{
+  content:"";
+  position:absolute;
+  left:0; right:0; bottom:-1px;
+  height:1px;
+  background:linear-gradient(90deg,
+    var(--accent) 0%,
+    rgba(111,224,216,.35) 45%,
+    transparent 100%);
+  transform:scaleX(0);
+  transform-origin:0 50%;
+  transition:transform .5s cubic-bezier(.2,.7,.2,1);
+}
+.menu__item:hover::after,
+.menu__item:focus-visible::after{ transform:scaleX(1); }
+
+.menu__item--primary::before{
+  content:"";
+  position:absolute;
+  left:-.85rem; top:50%;
+  width:2px; height:58%;
+  transform:translateY(-50%);
+  background:var(--accent);
+  box-shadow:0 0 12px rgba(111,224,216,.7);
+}
+
+.menu__idx{
+  grid-column:1;
+  font:400 10px/1.6 var(--mono);
+  letter-spacing:.14em;
+  color:var(--ink-3);
+  transition:color .25s;
+}
+
+.menu__label{
+  grid-column:2;
+  display:inline-block;
+  font-size:clamp(1.02rem, 1.95vw, 1.42rem);
+  font-weight:400;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  line-height:1.25;
+  transition:transform .4s cubic-bezier(.2,.7,.2,1), color .25s;
+}
+
+.menu__go{
+  position:absolute;
+  right:clamp(.2rem, 1vw, .6rem);
+  top:calc(50% - .35rem);
+  width:7px; height:7px;
+  border-top:1px solid var(--accent);
+  border-right:1px solid var(--accent);
+  transform:translateX(-7px) rotate(45deg);
+  opacity:0;
+  transition:opacity .3s, transform .4s cubic-bezier(.2,.7,.2,1);
+}
+
+.menu__item:hover .menu__idx,
+.menu__item:focus-visible .menu__idx{ color:var(--accent); }
+.menu__item:hover .menu__label,
+.menu__item:focus-visible .menu__label{
+  transform:translateX(8px);
+  color:#fff;
+}
+.menu__item:hover .menu__go,
+.menu__item:focus-visible .menu__go{
+  opacity:1;
+  transform:translateX(0) rotate(45deg);
+}
+
+@media (hover:none){
+  .menu__go{ display:none; }
+}
+
+/* ─── Панель данных ────────────────────────────────────── */
+.readout{
+  border:1px solid var(--line-2);
+  border-left:1px solid var(--line);
+  background:var(--panel);
+  backdrop-filter:blur(10px) saturate(120%);
+  -webkit-backdrop-filter:blur(10px) saturate(120%);
+  padding:clamp(.9rem, 1.6vw, 1.15rem) clamp(.95rem, 1.8vw, 1.25rem);
+}
+
+.readout__head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1rem;
+  padding-bottom:.7rem;
+  margin-bottom:.7rem;
+  border-bottom:1px solid var(--line-2);
+  font:400 9.5px/1 var(--mono);
+  letter-spacing:.24em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+.readout__live{
+  display:inline-flex;
+  align-items:center;
+  gap:.4rem;
+  color:var(--warn);
+}
+.readout__live i{
+  width:4px; height:4px; border-radius:50%;
+  background:currentColor;
+}
+
+.readout__list{ margin:0; }
+.readout__row{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:.75rem;
+  padding:.32rem 0;
+}
+.readout__row dt{
+  font:400 10.5px/1.4 var(--mono);
+  letter-spacing:.04em;
+  color:var(--ink-3);
+}
+.readout__row dd{ margin:0; white-space:nowrap; font-family:var(--mono); }
+.readout__row b{
+  font:400 14px/1 var(--mono);
+  letter-spacing:.02em;
+  color:var(--warn);
+  font-variant-numeric:tabular-nums;
+}
+.readout__row i{
+  font:300 9.5px/1 var(--mono);
+  font-style:normal;
+  letter-spacing:.06em;
+  color:var(--ink-3);
+  margin-left:.25em;
+}
+
+/* ─── Подвал ───────────────────────────────────────────── */
+.foot{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:1.25rem;
+  flex-wrap:wrap;
+  padding-top:clamp(.7rem, 1.6vh, 1.1rem);
+  border-top:1px solid var(--line-2);
+  font:400 9.5px/1.6 var(--mono);
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--ink-3);
+}
+.foot__clock{ font-variant-numeric:tabular-nums; }
+
+/* ─── Тост ─────────────────────────────────────────────── */
+.toast{
+  position:fixed;
+  left:50%;
+  bottom:clamp(3rem, 9vh, 5.5rem);
+  transform:translate(-50%, 14px);
+  z-index:60;
+  max-width:calc(100vw - 2rem);
+  padding:.75rem 1.1rem;
+  font:400 11px/1.3 var(--mono);
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--ink);
+  background:rgba(8,14,22,.88);
+  border:1px solid var(--line);
+  border-left:2px solid var(--accent);
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .3s ease, transform .4s cubic-bezier(.2,.7,.2,1);
+}
+.toast.is-on{ opacity:1; transform:translate(-50%, 0); }
+
+/* ─── Появление ────────────────────────────────────────── */
+@keyframes rise{
+  from{ opacity:0; transform:translateY(16px); }
+  to  { opacity:1; transform:none; }
+}
+.intro__title,
+.intro__lead,
+.menu__item,
+.readout,
+.foot{
+  animation:rise .95s cubic-bezier(.2,.7,.2,1) both;
+}
+.intro__title{ animation-delay:.10s; }
+.intro__lead { animation-delay:.20s; }
+.menu__item:nth-child(1){ animation-delay:.30s; }
+.menu__item:nth-child(2){ animation-delay:.36s; }
+.menu__item:nth-child(3){ animation-delay:.42s; }
+.menu__item:nth-child(4){ animation-delay:.48s; }
+.menu__item:nth-child(5){ animation-delay:.54s; }
+.menu__item:nth-child(6){ animation-delay:.60s; }
+.readout{ animation-delay:.68s; }
+.foot   { animation-delay:.76s; }
+
+/* ─── Адаптив ──────────────────────────────────────────── */
+@media (max-width:980px){
+  .stage{
+    grid-template-columns:1fr;
+    align-items:start;
+    gap:clamp(1.75rem, 4vh, 2.5rem);
+  }
+  .stage__main{ max-width:none; }
+
+  .readout{
+    border:0;
+    border-top:1px solid var(--line-2);
+    background:none;
+    backdrop-filter:none;
+    -webkit-backdrop-filter:none;
+    padding:.9rem 0 0;
+  }
+  .readout__list{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0,1fr));
+    gap:.15rem clamp(1rem, 5vw, 2rem);
+  }
+  .readout__row{ padding:.28rem 0; }
+
+  .bg__photo{ background-size:auto 105vh; background-position:center 78%; }
+  @keyframes bgDrift{
+    from{ background-position:center 78%; }
+    to  { background-position:center 76%; }
+  }
+  .bg__planet{ top:62vh; }
+}
+
+@media (max-width:640px){
+  .brand__tag,
+  .brand__sep{ display:none; }
+  .pill{ display:none; }
+
+  .menu__item{
+    grid-template-columns:2rem minmax(0,1fr);
+    padding-right:1.1rem;
+  }
+  .menu__item--primary::before{ left:-.6rem; }
+
+  .foot{ letter-spacing:.10em; font-size:9px; }
+  .bg__planet{ top:66vh; }
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;
+    animation-delay:0s !important;
+    transition-duration:.001ms !important;
+  }
+  .bg__photo{ animation:none; }
+}
+</style>
+</head>
+
+<body>
+<a class="skip" href="#menu">Перейти к разделам</a>
+
+<div class="bg" id="bg" aria-hidden="true">
+  <canvas id="stars" class="bg__stars"></canvas>
+  <div class="bg__planet"></div>
+  <div class="bg__photo" id="bgPhoto" role="img" aria-label="Земля с орбиты, снимок NASA"></div>
+  <div class="bg__vignette"></div>
+</div>
+<div class="grain" aria-hidden="true"></div>
+
+<div class="page">
+
+  <!--<header class="top">
+    <a class="brand" href="/" aria-label="TERRA — на главную">
+      <svg class="brand__mark" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="7.2" fill="none" stroke="currentColor" stroke-width="1.1"/>
+        <ellipse cx="12" cy="12" rx="11" ry="3.8" fill="none"
+                 stroke="currentColor" stroke-width="1"
+                 transform="rotate(-24 12 12)" opacity=".65"/>
+        <circle cx="12" cy="12" r="1.5" fill="currentColor"/>
+      </svg>
+      <span class="brand__name">Terra</span>
+      <span class="brand__sep" aria-hidden="true"></span>
+    </a>
+
+  </header>-->
+
+  <main class="stage">
+
+    <div class="stage__main">
+
+      <header class="intro">
+        <h1 class="intro__title">Земля</h1>
+
+        <!--<p class="intro__lead">
+          Среда перестаёт быть предсказуемой. Здесь — то, что нужно понимать,
+          чтобы читать её сигналы: от электрического заряда до параллельной
+          работы судовых генераторов.
+        </p>
+      </header>--> 
+
+      <nav class="menu" id="menu" aria-label="Разделы платформы">
+
+        <a class="menu__item menu__item--primary" href="#" data-route="/fields">
+          <span class="menu__label">Электричество и поля</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+        <a class="menu__item" href="#" data-route="/generators">
+          <span class="menu__label">Судовые генераторы</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+        <a class="menu__item" href="#" data-route="/periodic">
+          <span class="menu__label">Таблица Менделеева</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+        <a class="menu__item" href="#" data-route="/sea-level">
+          <span class="menu__label">Карта уровня моря</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+        <a class="menu__item" href="#" data-route="/game">
+          <span class="menu__label">Игра</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+        <a class="menu__item" href="#" data-route="/about">
+          <span class="menu__label">О проекте</span>
+          <span class="menu__go" aria-hidden="true"></span>
+        </a>
+
+      </nav>
+    </div>
+
+    
+
+  </main>
+
+  <footer class="foot">
+    <!--<span>© 2025 · прототип</span>-->
+    <span class="foot__clock">UTC <time id="clock">--:--:--</time></span>
+  </footer>
+
+</div>
+
+<div class="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ─── Фото Земли ───────────────────────────────────────── */
+  const bgEl = document.getElementById('bg');
+
+  // Blue Marble, Apollo 17 (NASA, public domain).
+  // images-assets.nasa.gov — официальный ассет-сервер NASA.
+  const NASA_URL =
+    'https://upload.wikimedia.org/wikipedia/commons/0/04/Hurricane_Isabel_from_ISS.jpg';
+
+  const probe = new Image();
+  probe.referrerPolicy = 'no-referrer';
+  probe.onload = () => {
+    // Подменяем URL в CSS, только когда картинка реально загрузилась —
+    // до этого остаётся нарисованный планетарный фолбэк.
+    const el = document.getElementById('bgPhoto');
+    el.style.backgroundImage = `url("${NASA_URL}")`;
+    requestAnimationFrame(() => bgEl.classList.add('is-ready'));
+  };
+  probe.onerror = () => {
+    // Тихо оставляем CSS-планету.
+    console.warn('[bg] NASA image failed to load, using fallback planet.');
+  };
+  probe.src = NASA_URL;
+
+  /* ─── Звёздное поле ────────────────────────────────────── */
+  const canvas = document.getElementById('stars');
+  const ctx = canvas.getContext('2d');
+  let stars = [], W = 0, H = 0, raf = 0;
+
+  function buildStars() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = canvas.width  = Math.floor(innerWidth  * dpr);
+    H = canvas.height = Math.floor(innerHeight * dpr);
+    canvas.style.width  = innerWidth  + 'px';
+    canvas.style.height = innerHeight + 'px';
+
+    const count = Math.round((innerWidth * innerHeight) / 7200);
+    stars = Array.from({ length: Math.min(count, 520) }, () => ({
+      x: Math.random() * W,
+      y: Math.random() * H,
+      r: (Math.random() * 1.05 + 0.25) * dpr,
+      a: Math.random() * 0.55 + 0.14,
+      s: Math.random() * 0.0016 + 0.0004,
+      p: Math.random() * Math.PI * 2
+    }));
+  }
+
+  function draw(t) {
+    ctx.clearRect(0, 0, W, H);
+    for (const st of stars) {
+      const tw = reduceMotion ? 1 : 0.65 + 0.35 * Math.sin(t * st.s + st.p);
+      ctx.globalAlpha = st.a * tw;
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, st.r, 0, Math.PI * 2);
+      ctx.fillStyle = '#cfe4ff';
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function loop(t) {
+    draw(t);
+    raf = requestAnimationFrame(loop);
+  }
+
+  buildStars();
+  if (reduceMotion) draw(0);
+  else raf = requestAnimationFrame(loop);
+
+  let resizeTimer;
+  addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      cancelAnimationFrame(raf);
+      buildStars();
+      if (reduceMotion) draw(0);
+      else raf = requestAnimationFrame(loop);
+    }, 180);
+  });
+
+  /* ─── Часы UTC ─────────────────────────────────────────── */
+  const clockEl = document.getElementById('clock');
+  const pad = n => String(n).padStart(2, '0');
+
+  function tickClock() {
+    const d = new Date();
+    clockEl.textContent =
+      `${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  /* ─── Тост ─────────────────────────────────────────────── */
+  const toastEl = document.querySelector('.toast');
+  let toastTimer;
+
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('is-on'), 2800);
+  }
+
+  /* ─── Меню ─────────────────────────────────────────────── */
+  const items = Array.from(document.querySelectorAll('.menu__item'));
+
+  items.forEach(el => {
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const label = el.querySelector('.menu__label').textContent.trim();
+      // Когда появятся страницы — поставьте реальные href
+      // и удалите этот обработчик.
+      toast(`«${label}» — раздел в разработке`);
+    });
+  });
+
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const i = items.indexOf(document.activeElement);
+    if (i === -1) return;
+    e.preventDefault();
+    const step = e.key === 'ArrowDown' ? 1 : -1;
+    items[(i + step + items.length) % items.length].focus();
+  });
+})();
+</script>
+</body>
+</html>
